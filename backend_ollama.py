@@ -169,20 +169,21 @@ endpoints:
             name: string
             desc: string
             availqty: int
-    """
+"""
 
 
     stream = ollama.generate(
         model="phi3",
         system=system_prompt,
-        prompt=str,
+        prompt=user_input,
         stream=True
     )
 
-    yaml_content = ""
+    
     for chunk in stream:
-        yaml_content += chunk['response']
+        print(chunk['response'])
         emit('yaml_chunk',{'yaml':chunk['response']})
+    
     disconnect()
 
 
