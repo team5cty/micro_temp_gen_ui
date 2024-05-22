@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microservice YAML Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+            background-color: var(--background-color, #ffffff);
+            color: var(--text-color, #000000);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background-color: var(--container-bg-color, #f9f9f9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            background-color: var(--textarea-bg-color, #ffffff);
+            color: var(--textarea-text-color, #000000);
+            border: 1px solid var(--textarea-border-color, #cccccc);
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        button[type="submit"] {
+            background-color: var(--submit-button-bg-color, #6200ee);
+            color: var(--submit-button-text-color, #ffffff);
+        }
+        button[type="submit"]:hover {
+            background-color: var(--submit-button-hover-bg-color, #3700b3);
+        }
+        button#saveButton,#ask,#download {
+            background-color: var(--save-button-bg-color, #03dac6);
+            color: var(--save-button-text-color, #000000);
+            display: none;
+        }
+        button#saveButton:hover,#ask:hover,#download:hover {
+            background-color: var(--save-button-hover-bg-color, #018786);
+        }
+        .toggle-switch {
+            position: absolute;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin-top: 3px;
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #6200ee;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        pre {
+            background: var(--pre-bg-color, #f4f4f4);
+            padding: 10px;
+            border: 1px solid var(--pre-border-color, #dddddd);
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        h1, h2 {
+            color: var(--heading-color, #000000);
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        #output,#outputh2,#download,#chat,#chattext,#ask,#chatq {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div>
+            <h1 style="display:inline;;">Microservice YAML Generator</h1>
+            <label class="toggle-switch" >
+                <input type="checkbox"  id="toggleButton">
+                <span class="slider" ></span>
+            </label>
+        </div>
+        <form id="requirementsForm">
+            <label for="requirements" style="padding-top: 20px;">Enter your requirements for microservice:</label>
+            <textarea id="requirements" name="requirements" required></textarea>
+            <button type="submit">Generate YAML</button>
+        </form>
+        <h2>Generated YAML:</h2>
+        <textarea id="yamlOutput"></textarea>
+        <button id="saveButton">Generate Go Module</button>
+        <h2 id="outputh2" style="padding-top: 60px;">Output:</h2>
+        <pre id="output"></pre>
+        <button id="download">Download</button>
+        <h2 id="chat" style="padding-top: 60px;"> Chat:</h2>
+        <textarea id="chatq"></textarea>
+        <button id="ask"> Ask </button>
+        <textarea id="chattext"></textarea>
+    </div>
+    <script>
+
+        document.getElementById('download').onclick = function() {
+            fetch('/zip')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'file.zip'; // Specify the file name
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error('There was a problem with the fetch operation:', error);
+                });
+        };
+
+        document.getElementById('ask').onclick = function() {
+            const question = document.getElementById('chatq').value;
+            const yamlOutput = document.getElementById('yamlOutput').value;
+            const socket = io();
+
+            socket.on('connect', function() {
+                console.log('Connected to server');
+                socket.emit('ask', { question , yamlOutput })
+            });
+
+            socket.on('answer_chunk', function(data) {
+                const out = document.getElementById('chattext');
+                out.value += data.answer;  // Append each YAML chunk
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Disconnected from server');
+            });
+        }
+
+        document.getElementById('requirementsForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const requirements = document.getElementById('requirements').value;
+            
+            const socket = io();
+
+            socket.on('connect', function() {
+                console.log('Connected to server');
+                socket.emit('send_requirements', { requirements });
+            });
+
+            socket.on('yaml_chunk', function(data) {
+                console.log('heee')
+                const yamlOutput = document.getElementById('yamlOutput');
+                yamlOutput.value += data.yaml;  // Append each YAML chunk
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Disconnected from server');
+                yamlOutput.value += "\n";
+                const saveButton = document.getElementById('saveButton');
+                saveButton.style.display = 'block';
+            });
+            
+           
+            
+
+            
+
+            // Set up the Save button to download the YAML content
+            saveButton.onclick = function() {
+                const yamlOutput = document.getElementById('yamlOutput');
+                const blob = new Blob([yamlOutput.value], { type: 'text/yaml' });
+
+                // Create a FormData object to send the blob
+                const formData = new FormData();
+                formData.append('file', blob, 'microservice.yaml');
+                document.getElementById('output').style.display = "block";
+                document.getElementById('outputh2').style.display = "block";
+
+                // Send the FormData to the /yaml endpoint using fetch
+                fetch('/yaml', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json(); // Assuming the server returns JSON
+                    } else {
+                        throw new Error('Network response was not ok.');
+                    }
+                })
+                .then(data => {
+                    console.log('File successfully sent:', data);
+                    // Display the endpoints and examples after successful submission
+                    document.getElementById('output').textContent = data.output;
+                    document.getElementById('download').style.display = "block";
+
+                })
+                .catch(error => {
+
+                    console.error('There was a problem with the fetch operation:', error);
+                    const e2 = document.getElementById('output')
+                    e2.textContent = error.output;
+                });
+                document.getElementById('chat').style.display = "block";
+                document.getElementById('chatq').style.display = "block";
+                document.getElementById('ask').style.display = "block";
+                document.getElementById('chattext').style.display = "block";
+
+            };
+        });
+
+        
+
+        document.getElementById('toggleButton').addEventListener('change', function() {
+            if (this.checked) {
+                document.body.style.setProperty('--background-color', '#121212');
+                document.body.style.setProperty('--text-color', '#ffffff');
+                document.body.style.setProperty('--container-bg-color', '#1e1e1e');
+                document.body.style.setProperty('--textarea-bg-color', '#333333');
+                document.body.style.setProperty('--textarea-text-color', '#ffffff');
+                document.body.style.setProperty('--textarea-border-color', '#444444');
+                document.body.style.setProperty('--submit-button-bg-color', '#6200ee');
+                document.body.style.setProperty('--submit-button-text-color', '#ffffff');
+                document.body.style.setProperty('--submit-button-hover-bg-color', '#3700b3');
+                document.body.style.setProperty('--save-button-bg-color', '#03dac6');
+                document.body.style.setProperty('--save-button-text-color', '#000000');
+                document.body.style.setProperty('--save-button-hover-bg-color', '#018786');
+                document.body.style.setProperty('--pre-bg-color', '#333333');
+                document.body.style.setProperty('--pre-border-color', '#444444');
+                document.body.style.setProperty('--heading-color', '#bb86fc');
+            } else {
+                document.body.style.setProperty('--background-color', '#ffffff');
+                document.body.style.setProperty('--text-color', '#000000');
+                document.body.style.setProperty('--container-bg-color', '#f9f9f9');
+                document.body.style.setProperty('--textarea-bg-color', '#ffffff');
+                document.body.style.setProperty('--textarea-text-color', '#000000');
+                document.body.style.setProperty('--textarea-border-color', '#cccccc');
+                document.body.style.setProperty('--submit-button-bg-color', '#6200ee');
+                document.body.style.setProperty('--submit-button-text-color', '#ffffff');
+                document.body.style.setProperty('--submit-button-hover-bg-color', '#3700b3');
+                document.body.style.setProperty('--save-button-bg-color', '#03dac6');
+                document.body.style.setProperty('--save-button-text-color', '#000000');
+                document.body.style.setProperty('--save-button-hover-bg-color', '#018786');
+                document.body.style.setProperty('--pre-bg-color', '#f4f4f4');
+                document.body.style.setProperty('--pre-border-color', '#dddddd');
+                document.body.style.setProperty('--heading-color', '#000000');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mypr-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-pr
+  template:
+    metadata:
+      labels:
+        app: my-pr
+    spec:
+      containers:
+      - name: my-pr
+        image: mypr
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080

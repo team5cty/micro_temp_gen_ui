@@ -1,0 +1,32 @@
+module: ReverseService
+port: 9001
+
+database:
+  provider: postgres
+  url: postgresql://postgres:l@localhost:3000/reversedb
+  models:
+    - table: ReversedStrings
+      schema:
+        ID: Int @id
+        OriginalString: String
+        ReversedString: String
+
+endpoints:
+  - name: Reversestring
+    path: /reversestring
+    method: POST
+    table: ReversedStrings
+    json:
+      type: object
+      properties:
+        originalString: string
+
+  - name: Getreversedstrings
+    path: /reversedstrings
+    method: GET
+    table: ReversedStrings
+    json:
+      type: list
+      properties:
+        originalString: string
+        reversedString: string

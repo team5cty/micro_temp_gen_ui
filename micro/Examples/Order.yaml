@@ -1,0 +1,53 @@
+module: Order
+
+port: 9090
+
+database:
+  provider: postgres
+  url:  postgresql://postgres:l@localhost:3000/newdb1
+  models:
+    - table: Order
+      schema:
+        Orderid: Int @id
+        Productid: Int
+        Quantity: Int 
+        Status: String
+
+kafka: localhost:9092
+
+endpoints: 
+  - name: Order
+    path: /order
+    method: POST
+    table: Order
+    kafka:
+      topic: quantity
+      type: producer
+    json:
+        type: object
+        properties:
+            orderid: int 
+            productid: int
+            quantity: int
+            status: string
+
+  - name: Order_details
+    path: /details/{id}
+    method: GET
+    table: Order
+    key:
+      name: orderid
+      type: int
+    json:
+        type: object
+        properties:
+            productid: int
+            quantity: int
+            status: string
+
+          
+
+
+  
+
+

@@ -1,0 +1,65 @@
+module: Menu
+
+port: 9000
+
+database:
+  provider: postgres
+  url:  postgresql://postgres:l@localhost:3000/newdb2
+  models:
+    - table: Menu
+      schema:
+        Menuid: Int @id
+        Name: String 
+        Desc: String
+        Availqty: Int
+
+
+kafka: localhost:9092
+
+
+endpoints: 
+  - name: Addmenu
+    path: /addmenu
+    method: POST
+    table: Menu
+    kafka:
+      topic: quantity
+      type: consumer
+    json:
+        type: object
+        properties:
+            menuid: int 
+            name: string
+            desc: string
+            availqty: int
+
+  - name: Getmenu
+    path: /menu
+    method: GET
+    table: Menu
+    json:
+        type: list
+        properties:
+            name: string
+            desc: string
+
+  - name: Getitem
+    path: /menu/{id}
+    method: GET
+    table: Menu
+    key:
+      name: menuid
+      type: int
+    json:
+        type: object
+        properties:
+            name: string
+            desc: string
+            availqty: int
+
+          
+
+
+  
+
+

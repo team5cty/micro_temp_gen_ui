@@ -1,0 +1,132 @@
+package handlers
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"context"
+	"fmt"
+	{{if eq .endpoint.Key.Type "int"}}
+	"strconv"
+	{{end}}
+	{{- if hasPathParam .endpoint.Path}}
+	"github.com/gorilla/mux"
+	{{- end}}
+	"{{.module}}/prisma/db"
+	{{if eq .endpoint.Kafka.Type "producer"}}
+	"{{.module}}/kafka"
+	{{end}}
+)
+
+type {{.endpoint.Name}} struct {
+	{{- range $key, $value := .endpoint.Json.Properties}}
+	{{title $key}} {{$value}}   `json:"{{tolower $key}}"` 
+	{{- end}}
+}
+
+{{- if eq .endpoint.Json.Type "list"}}
+type {{.endpoint.Name}}_list []*{{.endpoint.Name}}
+{{- end}}
+
+{{if eq .endpoint.Method "GET"}}
+func ({{.endpoint.Name | tolower}} *{{.endpoint.Name}}{{if eq .endpoint.Json.Type "list"}}_list{{end}}) ToJSON(w io.Writer) error {
+	e:= json.NewEncoder(w)
+	return e.Encode({{.endpoint.Name | tolower}})
+}
+{{- end}}
+
+{{- if eq .endpoint.Method "POST"}}
+func ({{.endpoint.Name | tolower}} *{{.endpoint.Name}}{{if eq .endpoint.Json.Type "list"}}_list{{end}}) FromJSON(r io.Reader) error {
+	d:= json.NewDecoder(r)
+	return d.Decode({{.endpoint.Name | tolower}})
+}
+{{- end}}
+
+
+func {{.endpoint.Method}}_{{.endpoint.Name}}_Handler (w http.ResponseWriter, r *http.Request) {
+	{{if eq .endpoint.Kafka.Type "producer"}}
+	produce := kafka.Producer("{{.endpoint.Kafka.Topic}}",0)
+	{{end}}
+
+	client := db.NewClient() 
+	ctx := context.Background()
+	if err := client.Prisma.Connect(); err != nil {
+		fmt.Printf("Error connecting database: %s",err.Error())
+	}
+	defer func() {
+		if err := client.Prisma.Disconnect(); err != nil {
+			fmt.Printf("Error Disconnecting database: %s",err.Error())
+		}
+	}()  
+
+	{{- if eq .endpoint.Json.Type "list"}} 
+	var {{tolower .endpoint.Name}} {{.endpoint.Name}}_list
+
+	{{- if eq .endpoint.Method "GET"}}
+	res, err := client.{{.endpoint.Table}}.FindMany().Exec(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for _, object := range res {
+		ele := &{{.endpoint.Name}}{
+			{{- range $key, $value := .endpoint.Json.Properties}}
+			{{title $key}}: object.{{title $key}},
+			{{- end}}
+		}
+		{{tolower .endpoint.Name}} = append({{tolower .endpoint.Name}}, ele)
+	}
+	{{tolower .endpoint.Name}}.ToJSON(w)
+	{{- end}}
+
+	{{- else}} 
+
+	{{- if eq .endpoint.Method "GET"}}
+	m:=mux.Vars(r)
+	var val string
+	for _,v := range m{
+		val=v
+	}
+
+	{{- if eq .endpoint.Key.Type "int"}}
+	value, _ := strconv.Atoi(val)
+	{{- else}}
+	value := val
+	{{- end}}
+
+	res, err := client.{{.endpoint.Table}}.FindUnique(db.{{.endpoint.Table}}.{{if eq (title .endpoint.Key.Name) "Id"}}ID{{else}}{{title .endpoint.Key.Name}}{{end}}.Equals(value)).Exec(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ele := &{{.endpoint.Name}}{
+		{{- range $key, $value := .endpoint.Json.Properties}}
+		{{title $key}}:res.{{if eq (title $key) "Id"}}ID{{else}}{{title $key}}{{end}},
+		{{- end}}
+	}
+	ele.ToJSON(w)
+
+	{{- else}}
+
+	w.Header().Set("Content-Type", "application/json")
+	{{if eq .endpoint.Method "POST"}}
+	var requestData {{.endpoint.Name}}
+	if err := requestData.FromJSON(r.Body); err != nil {
+		http.Error(w, "Failed to decode request body", http.StatusBadRequest)
+		return
+	}
+	{{$table := .endpoint.Table}}
+	_, err := client.{{.endpoint.Table}}.CreateOne(
+		{{- range $key, $value := .endpoint.Json.Properties}}
+		db.{{$table}}.{{if eq (title $key) "Id"}}ID{{else}}{{title $key}}{{end}}.Set(requestData.{{title $key}}),
+		{{- end}}
+	).Exec(ctx)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}	
+	{{- end}}
+	{{- end}}
+	{{- end}}
+}

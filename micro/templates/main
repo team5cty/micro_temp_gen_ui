@@ -1,0 +1,27 @@
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"{{.Module}}/handlers"
+	"{{.Module}}/kafka"
+	"github.com/gorilla/mux"
+)
+
+
+func main() {
+	r := mux.NewRouter()
+	{{- range .Endpoints}}
+	r.HandleFunc("{{.Path}}", handlers.{{.Method}}_{{.Name}}_Handler).Methods("{{.Method}}")
+	{{- end}}
+	{{ range .Endpoints}}
+	{{- if eq .Kafka.Type "consumer"}}
+	go kafka.Consume("{{.Kafka.Topic}}", 0, func(s string) {})
+	{{- end}}
+	{{end}}
+	fmt.Println("Server is running...")
+	err := http.ListenAndServe(":{{.Port}}", r)
+	if err!=nil{
+		fmt.Printf("Cannot start server: %s",err.Error())
+	}
+}

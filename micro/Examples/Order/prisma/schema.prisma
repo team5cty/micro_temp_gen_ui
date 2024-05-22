@@ -1,0 +1,18 @@
+datasource db {
+  provider = "postgres"
+  url      = "postgresql://postgres:l@localhost:3000/newdb2"
+}
+
+generator db {
+  provider = "go run github.com/steebchen/prisma-client-go"
+}
+
+
+model Order {
+  Orderid Int @id
+  Productid Int
+  Quantity Int
+  Status String
+}
+
+
