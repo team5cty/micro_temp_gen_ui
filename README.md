@@ -49,6 +49,7 @@ endpoints:
 			  productid: int
 ```
 
+
 #### Output Module Structure:
 The output is a go module with following directories:
 - Handlers - handler functions where user needs to define the logic of each endpoints. By default the handler function will try to fetch data from or insert data into database as per structure defined. 
