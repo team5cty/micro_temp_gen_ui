@@ -7,22 +7,24 @@ import (
 	"context"
 	"fmt"
 	
-	"ReverseService/prisma/db"
+	"RestaurantMenuService/prisma/db"
 	
 )
 
-type Reversestring struct {
-	OriginalString string   `json:"originalstring"`
+type AddItem struct {
+	Name string   `json:"name"`
+	Price float   `json:"price"`
+	Quantity int   `json:"quantity"`
 }
 
 
-func (reversestring *Reversestring) FromJSON(r io.Reader) error {
+func (additem *AddItem) FromJSON(r io.Reader) error {
 	d:= json.NewDecoder(r)
-	return d.Decode(reversestring)
+	return d.Decode(additem)
 }
 
 
-func POST_Reversestring_Handler (w http.ResponseWriter, r *http.Request) {
+func POST_AddItem_Handler (w http.ResponseWriter, r *http.Request) {
 	
 
 	client := db.NewClient() 
@@ -38,14 +40,16 @@ func POST_Reversestring_Handler (w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	
-	var requestData Reversestring
+	var requestData AddItem
 	if err := requestData.FromJSON(r.Body); err != nil {
 		http.Error(w, "Failed to decode request body", http.StatusBadRequest)
 		return
 	}
 	
-	_, err := client.ReversedStrings.CreateOne(
-		db.ReversedStrings.OriginalString.Set(requestData.OriginalString),
+	_, err := client.Items.CreateOne(
+		db.Items.Name.Set(requestData.Name),
+		db.Items.Price.Set(requestData.Price),
+		db.Items.Quantity.Set(requestData.Quantity),
 	).Exec(ctx)
 
 	if err != nil {

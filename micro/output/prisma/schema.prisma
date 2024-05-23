@@ -1,6 +1,6 @@
 datasource db {
   provider = "postgres"
-  url      = "postgresql://postgres:l@localhost:3000/reversedb"
+  url      = "postgres://postgres:l@localhost:3000/restaurant_db"
 }
 
 generator db {
@@ -8,10 +8,11 @@ generator db {
 }
 
 
-model ReversedStrings {
-  ID Int @id
-  OriginalString String
-  ReversedString String
+model Items {
+  Itemid Int @id
+  Name String
+  Price Float
+  Quantity Int
 }
 
 

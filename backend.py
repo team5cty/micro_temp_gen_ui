@@ -9,6 +9,10 @@ from hugchat.login import Login
 EMAIL = ""
 PASSWD = ""
 
+if EMAIL=="" or PASSWD=="":
+    print("Please define hugging-face email and password, or use backend_ollama.py for using local models.")
+    exit(0)
+
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode='threading')
 
@@ -90,10 +94,42 @@ def handle_ask(data):
 
     system_prompt = """
     You are given with a yaml file which will contain structure of a microservice. You will be asked to generate code in golang related to the yaml file. Just reply with code and do not explain the code. Do not print even ``` at begining and end of generated code.
-    
-    
+    Here is an example handler function:
+    func POST_Addmenu_Handler(w http.ResponseWriter, r *http.Request) {
+
+	client := db.NewClient()
+	ctx := context.Background()
+	if err := client.Prisma.Connect(); err != nil {
+		fmt.Printf("Error connecting database: %s", err.Error())
+	}
+	defer func() {
+		if err := client.Prisma.Disconnect(); err != nil {
+			fmt.Printf("Error Disconnecting database: %s", err.Error())
+		}
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+
+	var requestData Addmenu
+	if err := requestData.FromJSON(r.Body); err != nil {
+		http.Error(w, "Failed to decode request body", http.StatusBadRequest)
+		return
+	}
+
+	_, err := client.Menu.CreateOne(
+		db.Menu.Availqty.Set(requestData.Availqty),
+		db.Menu.Desc.Set(requestData.Desc),
+		db.Menu.Menuid.Set(requestData.Menuid),
+		db.Menu.Name.Set(requestData.Name),
+	).Exec(ctx)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}   
     """
-    chatbot = hugchat.ChatBot(default_llm=0,cookies=cookies.get_dict(),system_prompt=system_prompt)  
+    chatbot = hugchat.ChatBot(default_llm=8,cookies=cookies.get_dict(),system_prompt=system_prompt)  
     query="YAML file:\n"+yamlOutput+"\n Question:\n"+user_input
     yaml_content = ""
     for resp in chatbot.query(query,stream=True):
@@ -180,13 +216,11 @@ endpoints:
             desc: string
             availqty: int
     """
-    chatbot = hugchat.ChatBot(default_llm=0,cookies=cookies.get_dict(),system_prompt=system_prompt)  
+    chatbot = hugchat.ChatBot(default_llm=8,cookies=cookies.get_dict(),system_prompt=system_prompt)  
 
-    yaml_content = ""
     for resp in chatbot.query(user_input,stream=True):
         if resp:
             print(resp['token'])
-            yaml_content += resp['token']
             emit('yaml_chunk', {'yaml': resp['token']})
     disconnect()
 

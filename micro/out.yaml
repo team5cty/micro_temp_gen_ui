@@ -1,32 +1,38 @@
-module: ReverseService
-port: 9001
+module: RestaurantMenuService
+port: 9000
 
 database:
   provider: postgres
-  url: postgresql://postgres:l@localhost:3000/reversedb
+  url: postgres://postgres:l@localhost:3000/restaurant_db
   models:
-    - table: ReversedStrings
+    - table: Items
       schema:
-        ID: Int @id
-        OriginalString: String
-        ReversedString: String
+        Itemid: Int @id
+        Name: String
+        Price: Float
+        Quantity: Int
 
-endpoints:
-  - name: Reversestring
-    path: /reversestring
+
+endpoints: 
+  - name: AddItem
+    path: /additem
     method: POST
-    table: ReversedStrings
+    table: Items
     json:
-      type: object
-      properties:
-        originalString: string
+        type: object
+        properties:
+            name: string
+            price: float
+            quantity: int
 
-  - name: Getreversedstrings
-    path: /reversedstrings
+  - name: GetItems
+    path: /items
     method: GET
-    table: ReversedStrings
+    table: Items
     json:
-      type: list
-      properties:
-        originalString: string
-        reversedString: string
+        type: list
+        properties:
+            Itemid: Int
+            Name: string
+            Price: float
+            Quantity: int
