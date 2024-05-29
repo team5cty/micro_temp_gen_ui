@@ -9,39 +9,43 @@ from hugchat.login import Login
 EMAIL = ""
 PASSWD = ""
 
-if EMAIL=="" or PASSWD=="":
+if EMAIL == "" or PASSWD == "":
     print("Please define hugging-face email and password, or use backend_ollama.py for using local models.")
     exit(0)
 
 app = Flask(__name__)
 socketio = SocketIO(app, async_mode='threading')
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/yaml', methods=['POST'])
 def generate():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
+
     if file:
         # Ensure the micro directory exists
         micro_dir = 'micro'
         # Change directory to micro
         os.chdir(micro_dir)
-        
+
         # Save the uploaded file as out.yaml
         file_path = 'out.yaml'
-        file.save(file_path)
-        
+        with open(file_path, 'wb') as f:  # Use 'wb' mode for binary files
+            f.write(file.stream.read())
+
         # Run the command
         try:
-            result = subprocess.run(['go', 'run', 'main.go', file_path], capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                ['go', 'run', 'main.go', file_path], capture_output=True, text=True, check=True)
             output = result.stdout
         except subprocess.CalledProcessError as e:
             output = e.stderr
@@ -49,15 +53,14 @@ def generate():
         finally:
             # Change back to the original directory
             os.chdir('..')
-        
-        return jsonify({'message': 'File processed successfully', 'output': output}), 200
 
+        return jsonify({'message': 'File processed successfully', 'output': output}), 200
 
 
 @app.route('/zip', methods=['GET'])
 def download_zip():
-    
-    shutil.make_archive("out","zip","micro/output")
+
+    shutil.make_archive("out", "zip", "micro/output")
     try:
         return send_file('out.zip', as_attachment=True)
     except Exception as e:
@@ -65,12 +68,13 @@ def download_zip():
     finally:
         if os.path.exists('out.zip'):
             os.remove('out.zip')
-
+        shutil.rmtree("micro/output")
 
 
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -86,7 +90,6 @@ def handle_ask(data):
     if not user_input:
         emit('error', {'message': 'No requirements provided'})
         return
-
 
     cookie_path_dir = "./cookies/"
     sign = Login(EMAIL, PASSWD)
@@ -126,20 +129,19 @@ def handle_ask(data):
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-}   
+    }
+}
     """
-    chatbot = hugchat.ChatBot(default_llm=8,cookies=cookies.get_dict(),system_prompt=system_prompt)  
-    query="YAML file:\n"+yamlOutput+"\n Question:\n"+user_input
+    chatbot = hugchat.ChatBot(
+        default_llm=8, cookies=cookies.get_dict(), system_prompt=system_prompt)
+    query = "YAML file:\n"+yamlOutput+"\n Question:\n"+user_input
     yaml_content = ""
-    for resp in chatbot.query(query,stream=True):
+    for resp in chatbot.query(query, stream=True):
         if resp:
             print(resp['token'])
             yaml_content += resp['token']
-            emit('answer_chunk', {'answer': resp['token']})
+            emit('answer_chunk', {'answer': resp['token'].replace('\0', '')})
     disconnect()
-
-
 
 
 @socketio.on('send_requirements')
@@ -151,14 +153,14 @@ def handle_requirements(data):
 
     print(f"Received requirements: {user_input}")
 
-
     cookie_path_dir = "./cookies/"
     sign = Login(EMAIL, PASSWD)
     cookies = sign.login(cookie_dir_path=cookie_path_dir, save_cookies=True)
 
     system_prompt = """
 You are a AI agent that converts microservice description in english to YAML file. Just output the yaml file and nothing else. Do not include code blocks using ``` too. The output should strictly follow the format given below and nothing else.
- Format of the yaml file must be as follows:
+Do not include kafka unless mentioned.
+Format of the yaml file must be as follows:
 
 module: MenuService
 port: 9000
@@ -173,6 +175,7 @@ database:
         Name: String 
         Desc: String
         Availqty: Int
+        Price: Float
 
 kafka: localhost:9092
 
@@ -191,6 +194,7 @@ endpoints:
             name: string
             desc: string
             availqty: int
+            price: float64
 
   - name: Getmenu
     path: /menu
@@ -215,13 +219,14 @@ endpoints:
             name: string
             desc: string
             availqty: int
+            price: float64
     """
-    chatbot = hugchat.ChatBot(default_llm=8,cookies=cookies.get_dict(),system_prompt=system_prompt)  
-
-    for resp in chatbot.query(user_input,stream=True):
+    chatbot = hugchat.ChatBot(
+        default_llm=0, cookies=cookies.get_dict(), system_prompt=system_prompt)
+    for resp in chatbot.query(user_input, stream=True):
         if resp:
             print(resp['token'])
-            emit('yaml_chunk', {'yaml': resp['token']})
+            emit('yaml_chunk', resp['token'].replace('\0', ''))
     disconnect()
 
 

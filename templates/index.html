@@ -203,9 +203,7 @@
             });
 
             socket.on('yaml_chunk', function(data) {
-                console.log('heee')
-                const yamlOutput = document.getElementById('yamlOutput');
-                yamlOutput.value += data.yaml;  // Append each YAML chunk
+                yamlOutput.value += data;  // Append each YAML chunk
             });
 
             socket.on('disconnect', function() {
@@ -223,7 +221,7 @@
             // Set up the Save button to download the YAML content
             saveButton.onclick = function() {
                 const yamlOutput = document.getElementById('yamlOutput');
-                const blob = new Blob([yamlOutput.value], { type: 'text/yaml' });
+                const blob = new Blob([yamlOutput.value], { type: 'text/plain' });
 
                 // Create a FormData object to send the blob
                 const formData = new FormData();
