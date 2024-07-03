@@ -24,6 +24,7 @@ def index():
 
 @app.route('/yaml', methods=['POST'])
 def generate():
+    print('hee1')
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
 
@@ -32,8 +33,10 @@ def generate():
         return jsonify({'error': 'No selected file'}), 400
 
     if file:
+        print('hee2')
         # Ensure the micro directory exists
         micro_dir = 'micro'
+        print(os.getcwd())
         # Change directory to micro
         os.chdir(micro_dir)
 
@@ -44,6 +47,13 @@ def generate():
 
         # Run the command
         try:
+            print(os.getcwd())
+            shutil.rmtree("output")
+            print("Deleted output directory")
+        except Exception:
+            print("output directory does not exist.")
+        try:
+            print('h3')
             result = subprocess.run(
                 ['go', 'run', 'main.go', file_path], capture_output=True, text=True, check=True)
             output = result.stdout
@@ -53,6 +63,7 @@ def generate():
         finally:
             # Change back to the original directory
             os.chdir('..')
+            print('h4')
 
         return jsonify({'message': 'File processed successfully', 'output': output}), 200
 
@@ -133,10 +144,11 @@ def handle_ask(data):
 }
     """
     chatbot = hugchat.ChatBot(
-        default_llm=8, cookies=cookies.get_dict(), system_prompt=system_prompt)
+        default_llm=1, cookies=cookies.get_dict(), system_prompt=system_prompt)
     query = "YAML file:\n"+yamlOutput+"\n Question:\n"+user_input
     yaml_content = ""
     for resp in chatbot.query(query, stream=True):
+        print(resp)
         if resp:
             print(resp['token'])
             yaml_content += resp['token']
@@ -222,7 +234,7 @@ endpoints:
             price: float64
     """
     chatbot = hugchat.ChatBot(
-        default_llm=0, cookies=cookies.get_dict(), system_prompt=system_prompt)
+        default_llm=1, cookies=cookies.get_dict(), system_prompt=system_prompt)
     for resp in chatbot.query(user_input, stream=True):
         if resp:
             print(resp['token'])

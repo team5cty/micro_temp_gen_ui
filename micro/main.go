@@ -95,6 +95,7 @@ func main() {
 	cmd = exec.Command("go", "get", "github.com/segmentio/kafka-go")
 	execute_with_stdout_stderr(cmd)
 	os.Chdir("..")
+	fmt.Println("heree1")
 
 	//There are three template files:-
 	//main - for generating main.go
@@ -116,8 +117,20 @@ func main() {
 	t := template.Must(template.New("main.go_template").
 		Funcs(template.FuncMap{"tolower": strings.ToLower}).
 		Parse(string(template_file_buffer)))
+	isthereconsumer := false
+	for _, i := range yamlobject.Endpoints {
+		if i.Kafka.Type == "consumer" {
+			isthereconsumer = true
+		}
+	}
 
-	err = t.Execute(template_output_buffer, yamlobject)
+	fmt.Println("heree2")
+	data := map[string]any{
+		"isthereconsumer": isthereconsumer,
+		"yaml":            yamlobject,
+	}
+
+	err = t.Execute(template_output_buffer, data)
 
 	if err != nil {
 		fmt.Printf("Error executing template: %s\n", err.Error())
